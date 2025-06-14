@@ -1,8 +1,9 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multimodal Chat</title>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 2em; }
@@ -10,31 +11,29 @@
     #chat div { margin: 0.5em 0; }
     .user { color: #0066cc; }
     .assistant { color: #008000; }
+    input, button { width: 100%; padding: 0.5em; margin-top: 0.5em; }
   </style>
 </head>
 <body>
   <h1>📷 Multimodal Chat</h1>
   <div id="chat"></div>
-  <input type="text" id="text-input" placeholder="메시지를 입력하세요" style="width:100%; padding:0.5em;">
-  <input type="file" id="image-input" accept="image/*" style="margin-top:0.5em;">
-  <button id="send-btn" style="margin-top:1em; padding:0.5em 1em;">전송</button>
+  <input type="text" id="text-input" placeholder="메시지를 입력하세요">
+  <input type="file" id="image-input" accept="image/*">
+  <button id="send-btn">전송</button>
 
   <script>
     const chatHistory = [];
-    const sendBtn = document.getElementById('send-btn');
-    sendBtn.addEventListener('click', sendMessage);
+    const chatEl = document.getElementById('chat');
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
 
     async function sendMessage() {
-      const textInput = document.getElementById('text-input');
-      const imageInput = document.getElementById('image-input');
-      const text = textInput.value.trim();
+      const text = document.getElementById('text-input').value.trim();
+      const file = document.getElementById('image-input').files[0];
       let images = [];
 
-      if (imageInput.files.length) {
-        const file = imageInput.files[0];
-        images = await toBase64(file);
+      if (file) {
+        images = await toBase64(file);  // [base64string]
       }
-
       if (!text && images.length === 0) return;
 
       chatHistory.push({ role: 'user', content: text });
@@ -45,20 +44,20 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: chatHistory, images })
       });
-      const { reply, error } = await res.json();
-      if (reply) {
-        chatHistory.push(reply);
-        renderChat();
-      } else {
-        alert('에러: ' + error);
+      const data = await res.json();
+      if (data.error) {
+        alert('에러: ' + data.error);
+        return;
       }
 
-      textInput.value = '';
-      imageInput.value = null;
+      chatHistory.push(data.reply);
+      renderChat();
+
+      document.getElementById('text-input').value = '';
+      document.getElementById('image-input').value = null;
     }
 
     function renderChat() {
-      const chatEl = document.getElementById('chat');
       chatEl.innerHTML = '';
       chatHistory.forEach(msg => {
         const div = document.createElement('div');
@@ -70,7 +69,7 @@
     }
 
     function toBase64(file) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const reader = new FileReader();
         reader.onload = () => resolve([reader.result]);
         reader.readAsDataURL(file);
